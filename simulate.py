@@ -1,134 +1,119 @@
+"""
+Simulate Prediction Module
+
+This module provides a class for generating and processing simulation data
+for prediction tasks, particularly useful for testing domain adaptation algorithms.
+"""
 
 import numpy as np
-import numpy as np
-from sklearn.preprocessing import StandardScaler
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
+class SimulatePrediction:
+    """
+    A class to simulate prediction scenarios with domain adaptation.
 
+    Attributes:
+        A, B, C (float): Coefficients for source domain function.
+        a, b, c (float): Coefficients for target domain function.
+    """
 
-class simulate_prediction:
     def __init__(self, A=-6, B=0, C=1, a=1, b=1, c=1):
-        self.A = A
-        self.B = B
-        self.C = C
-        self.a = a
-        self.b = b
-        self.c = c
-        return None
+        """
+        Initialize the SimulatePrediction object.
 
-    def Data_generation(self,
-                        r1=1,
-                        r2=2,
-                        r3=3,
-                        source_num=500,
-                        target_num=10,
-                        test_num=200,
-                        source_loc=5,
-                        source_scale=3,
-                        source_noise_scale=200,
-                        target_uniform=5,
-                        target_noise_scale=12):
-        #=======Data generation===============
-        self.r1 = r1
-        self.r2 = r2
-        self.r3 = r3
+        Args:
+            A, B, C (float): Coefficients for source domain function.
+            a, b, c (float): Coefficients for target domain function.
+        """
+        self.A, self.B, self.C = A, B, C
+        self.a, self.b, self.c = a, b, c
+
+    def data_generation(self, r1=1, r2=2, r3=3, source_num=500, target_num=10, test_num=200,
+                        source_loc=5, source_scale=3, source_noise_scale=200,
+                        target_uniform=5, target_noise_scale=12):
+        """
+        Generate synthetic data for source, target, and test sets.
+
+        Args:
+            r1, r2, r3 (int): Random seeds for source, target, and test data generation.
+            source_num (int): Number of source domain samples.
+            target_num (int): Number of target domain samples.
+            test_num (int): Number of test samples.
+            source_loc (float): Mean of source domain distribution.
+            source_scale (float): Standard deviation of source domain distribution.
+            source_noise_scale (float): Noise scale for source domain.
+            target_uniform (float): Range for uniform distribution in target domain.
+            target_noise_scale (float): Noise scale for target domain.
+        """
+        self.r1, self.r2, self.r3 = r1, r2, r3
+
+        # Generate source domain data
         rng1 = np.random.RandomState(self.r1)
-        X1 = rng1.normal(loc=source_loc,
-                         scale=source_scale,
-                         size=(source_num, 1))
-        Y1 = self.A * X1 + self.B * np.power(X1, 2) + self.C * np.power(X1, 3)
-        Y1 += rng1.normal(0, source_noise_scale, size=Y1.shape)
+        self.x_source = rng1.normal(loc=source_loc, scale=source_scale, size=(source_num, 1))
+        self.y_source = self.A * self.x_source + self.B * np.power(self.x_source, 2) + self.C * np.power(self.x_source, 3)
+        self.y_source += rng1.normal(0, source_noise_scale, size=self.y_source.shape)
+
+        # Generate target domain data
         rng2 = np.random.RandomState(self.r2)
-        Xp = rng2.uniform(target_uniform,
-                          -target_uniform,
-                          size=(target_num, 1))
-        Yp = self.a * Xp + self.b * np.power(Xp, 2) + self.c * np.power(Xp, 3)
-        Yp += rng2.normal(0, target_noise_scale, size=Yp.shape)
+        self.x_target = rng2.uniform(-target_uniform, target_uniform, size=(target_num, 1))
+        self.y_target = self.a * self.x_target + self.b * np.power(self.x_target, 2) + self.c * np.power(self.x_target, 3)
+        self.y_target += rng2.normal(0, target_noise_scale, size=self.y_target.shape)
+
+        # Generate test data
         rng3 = np.random.RandomState(self.r3)
-        Xtest = rng3.uniform(-target_uniform,
-                             target_uniform,
-                             size=(test_num, 1))
-        Ytest = self.a * Xtest + self.b * np.power(
-            Xtest, 2) + self.c * np.power(Xtest, 3)
-        Ytest += rng3.normal(0, target_noise_scale, size=Ytest.shape)
-        path_writer =  "baseline_simulate" + '.xlsx'
-        sheet= 'plot'
-        self.x_source = X1
-        self.y_source = Y1
+        self.x_test = rng3.uniform(-target_uniform, target_uniform, size=(test_num, 1))
+        self.y_test = self.a * self.x_test + self.b * np.power(self.x_test, 2) + self.c * np.power(self.x_test, 3)
+        self.y_test += rng3.normal(0, target_noise_scale, size=self.y_test.shape)
+
+        # Load target data from Excel file (if needed)
+        path_writer = "baseline_simulate.xlsx"
+        sheet = 'plot'
         self.x_target = pd.read_excel(path_writer, sheet_name=sheet).values[:, 5:6]
         self.y_target = pd.read_excel(path_writer, sheet_name=sheet).values[:, 6:7]
-        self.x_test = Xtest
-        self.y_test = Ytest
 
-#=======Data normalization================
+    def data_normalization(self):
+        """
+        Normalize the generated data using StandardScaler and save to Excel.
+        """
+        self.std1, self.std2, self.std3, self.std4 = StandardScaler(), StandardScaler(), StandardScaler(), StandardScaler()
 
-    def data_normalizaiton(self):
-        self.std1 = StandardScaler()
-        self.std2 = StandardScaler()
-        self.std3 = StandardScaler()
-        self.std4 = StandardScaler()
-        data4 = np.hstack((self.x_source, self.y_source))
-        data5 = np.hstack((self.x_target, self.y_target))
+        # Store original data
+        data_source = np.hstack((self.x_source, self.y_source))
+        data_target = np.hstack((self.x_target, self.y_target))
+
+        # Normalize data
         self.x_source = self.std1.fit_transform(self.x_source)
         self.y_source = self.std2.fit_transform(self.y_source)
         self.x_target = self.std3.fit_transform(self.x_target)
         self.y_target = self.std4.fit_transform(self.y_target)
+
         self.x_sourcetarget = np.vstack((self.x_source, self.x_target))
         self.y_sourcetarget = np.vstack((self.y_source, self.y_target))
+
         x_test_real = self.x_test
-        Y_test_real = self.a * x_test_real + self.b * np.power(
-            x_test_real, 2) + self.c * np.power(x_test_real, 3)
+        y_test_real = self.a * x_test_real + self.b * np.power(x_test_real, 2) + self.c * np.power(x_test_real, 3)
         self.x_test = self.std3.transform(self.x_test)
 
-        #======= save data========
-        col_name_NOsource = ['x_source_normal', 'y_source_normal']
-        col_name_NOtarget = ['x_target_normal', 'y_target_normal']
-        col_name_source = ['x_source', 'y_source']
-        col_name_target = ['x_target', 'y_target']
-        col_name_REtest = ['x_test_real', 'y_test_true', 'y_test_real']
-        data1 = np.hstack((self.x_source, self.y_source))
-        data2 = np.hstack((self.x_target, self.y_target))
-        data3 = np.hstack((
-            x_test_real,
-            self.y_test,
-            Y_test_real,
-        ))
-        data1 = pd.DataFrame(data1, columns=col_name_NOsource)
-        data2 = pd.DataFrame(data2, columns=col_name_NOtarget)
-        data3 = pd.DataFrame(data3, columns=col_name_REtest)
-        data4 = pd.DataFrame(data4, columns=col_name_source)
-        data5 = pd.DataFrame(data5, columns=col_name_target)
-        path_writer =  "original_datanew" + '.xlsx'
-        writer = pd.ExcelWriter(path_writer)
-        data1.to_excel(writer,
-                       sheet_name='source_normal',
-                       startcol=0,
-                       index=False)
-        data2.to_excel(writer,
-                       sheet_name='target_normal',
-                       startcol=0,
-                       index=False)
-        data3.to_excel(writer, sheet_name='test_real', startcol=0, index=False)
-        data4.to_excel(writer,
-                       sheet_name='source_real',
-                       startcol=0,
-                       index=False)
-        data5.to_excel(writer,
-                       sheet_name='target_real',
-                       startcol=0,
-                       index=False)
-        writer.save()
+        # Prepare data for saving
+        data_frames = {
+            'source_normal': pd.DataFrame(np.hstack((self.x_source, self.y_source)),
+                                          columns=['x_source_normal', 'y_source_normal']),
+            'target_normal': pd.DataFrame(np.hstack((self.x_target, self.y_target)),
+                                          columns=['x_target_normal', 'y_target_normal']),
+            'test_real': pd.DataFrame(np.hstack((x_test_real, self.y_test, y_test_real)),
+                                      columns=['x_test_real', 'y_test_true', 'y_test_real']),
+            'source_real': pd.DataFrame(data_source, columns=['x_source', 'y_source']),
+            'target_real': pd.DataFrame(data_target, columns=['x_target', 'y_target'])
+        }
+
+        # Save to Excel
+        with pd.ExcelWriter("original_datanew.xlsx") as writer:
+            for sheet_name, df in data_frames.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 if __name__ == '__main__':
-    simulate_process = simulate_prediction(A=-5, C=2)
-
-    simulate_process.Data_generation(r1=7,
-                                        source_num=500,
-                                        test_num=200,
-                                        source_loc=7,
-                                        source_scale=3,
-                                        target_uniform=-4,
-                                        source_noise_scale=200,
-                                        target_noise_scale=6,
-                                        target_num=10)
-    simulate_process.data_normalizaiton()
+    simulate_process = SimulatePrediction(A=-5, C=2)
+    simulate_process.data_generation(r1=7, source_num=500, test_num=200, source_loc=7, source_scale=3,
+                                     target_uniform=4, source_noise_scale=200, target_noise_scale=6, target_num=10)
+    simulate_process.data_normalization()
